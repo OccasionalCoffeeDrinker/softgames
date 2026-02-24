@@ -44,13 +44,20 @@ const MESSAGE_REVEAL_MS = 1500; // delay between each bubble appearing
  * Load a Texture from `primaryUrl`; on failure try `fallbackUrl`.
  * Returns Texture.EMPTY if both fail.
  */
+const ASSET_TIMEOUT_MS = 3000;
+
 async function _loadWithFallback(primaryUrl: string, fallbackUrl: string): Promise<Texture> {
   const load = (url: string): Promise<Texture> =>
     new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = () => { resolve(Texture.from(img)); };
-      img.onerror = () => { resolve(Texture.EMPTY); };
+      // Hard timeout — prevents hanging on blocked ports (e.g. port 81 from API).
+      const timer = window.setTimeout(() => {
+        img.src = '';      // abort the pending request
+        resolve(Texture.EMPTY);
+      }, ASSET_TIMEOUT_MS);
+      img.onload = () => { clearTimeout(timer); resolve(Texture.from(img)); };
+      img.onerror = () => { clearTimeout(timer); resolve(Texture.EMPTY); };
       img.src = url;
     });
   const tex = await load(primaryUrl);
