@@ -46,22 +46,45 @@ const MESSAGE_REVEAL_MS = 1500; // delay between each bubble appearing
  */
 const ASSET_TIMEOUT_MS = 3000;
 
+/**
+ * Load an image texture, falling back to `fallbackUrl` if the primary fails
+ * or times out.  Uses fetch() + AbortController for the primary so the
+ * network request is truly cancelled after ASSET_TIMEOUT_MS — setting
+ * img.src='' does not abort an in-flight connection on all browsers.
+ */
 async function _loadWithFallback(primaryUrl: string, fallbackUrl: string): Promise<Texture> {
-  const load = (url: string): Promise<Texture> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      // Hard timeout — prevents hanging on blocked ports (e.g. port 81 from API).
-      const timer = window.setTimeout(() => {
-        img.src = '';      // abort the pending request
-        resolve(Texture.EMPTY);
-      }, ASSET_TIMEOUT_MS);
-      img.onload = () => { clearTimeout(timer); resolve(Texture.from(img)); };
-      img.onerror = () => { clearTimeout(timer); resolve(Texture.EMPTY); };
-      img.src = url;
+  // Primary: fetch with abort timeout → create blob URL → load as Image.
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => { controller.abort(); }, ASSET_TIMEOUT_MS);
+  try {
+    const resp = await fetch(primaryUrl, {
+      signal: controller.signal,
+      mode: 'cors',
+      credentials: 'omit',
     });
-  const tex = await load(primaryUrl);
-  return tex !== Texture.EMPTY ? tex : load(fallbackUrl);
+    clearTimeout(timer);
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      return await new Promise<Texture>((resolve) => {
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(Texture.from(img)); };
+        img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(Texture.EMPTY); };
+        img.src = blobUrl;
+      });
+    }
+  } catch {
+    clearTimeout(timer);
+    // Aborted, network error, CORS block — fall through to local fallback.
+  }
+
+  // Fallback: local asset, no timeout needed.
+  return new Promise<Texture>((resolve) => {
+    const img = new Image();
+    img.onload = () => { resolve(Texture.from(img)); };
+    img.onerror = () => { resolve(Texture.EMPTY); };
+    img.src = fallbackUrl;
+  });
 }
 
 // ---------------------------------------------------------------------------
