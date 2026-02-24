@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Softgames Assignment</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a0f;
+        /* Prevent default touch behaviours (scroll, zoom) on mobile */
+        touch-action: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* Canvas is injected by PixiJS — ensure it fills the container */
+      #app canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* Fullscreen toggle button — always on top of the canvas */
+      #fullscreen-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        color: #ffffff;
+        cursor: pointer;
+        z-index: 100;
+        transition: background 0.15s;
+      }
+      #fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      #fullscreen-btn svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-CZ5SVnyu.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/pixi-q3QKobiU.js">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
