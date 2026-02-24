@@ -44,7 +44,7 @@ const MESSAGE_REVEAL_MS = 1500; // delay between each bubble appearing
  * Load a Texture from `primaryUrl`; on failure try `fallbackUrl`.
  * Returns Texture.EMPTY if both fail.
  */
-const ASSET_TIMEOUT_MS = 3000;
+const ASSET_TIMEOUT_MS = 1500;
 
 /**
  * Load an image texture, falling back to `fallbackUrl` if the primary fails
@@ -233,8 +233,6 @@ export class MagicWordsScene implements Scene {
         this._prevSenderName = null;
         this._chatArea.removeChildren();
         this._chatArea.y = 0;
-        // Re-add typing indicator (was destroyed by removeChildren).
-        this._chatArea.addChild(this._typingIndicator);
         void this._loadData();
       },
     });
@@ -257,7 +255,9 @@ export class MagicWordsScene implements Scene {
       dot.x = 10 + i * 14;
       this._typingIndicator.addChild(dot);
     }
-    this._chatArea.addChild(this._typingIndicator);
+    // Typing indicator sits in root (not chatArea) so it is always pinned at
+    // the bottom of the visible chat viewport and never scrolls off screen.
+    this.root.addChild(this._typingIndicator);
   }
 
   public enter(): void {
@@ -337,50 +337,14 @@ export class MagicWordsScene implements Scene {
     }
 
     if (this._destroyed) return;
-    // Build avatar lookup: texture + position from API.
-    const avatarLoads = data.avatars.map(async (av) => {
-      const tex = await _loadWithFallback(
-        av.url,
-        `${import.meta.env.BASE_URL}assets/avatars/${av.name.toLowerCase()}.png`,
-      );
-      this._avatarTextureMap.set(av.name, tex);
-      // Store position from API; default to 'left' if field is absent.
-      const pos = av.position === 'right' ? 'right' : 'left';
-      this._positionMap.set(av.name, pos);
-    });
-    await Promise.allSettled(avatarLoads);
+
     this._dialogue = data.dialogue;
 
-    // Some dialogue characters may not appear in data.avatars (e.g. "Neighbour").
-    // For those, attempt to load a local fallback image by name.
+    // Compute all loads upfront — run everything in one parallel batch.
     const knownNames = new Set(data.avatars.map((av) => av.name));
     const extraNames = [...new Set(data.dialogue.map((l) => l.name))].filter(
       (n) => !knownNames.has(n),
     );
-    const extraLoads = extraNames.map(async (name) => {
-      const tex = await _loadWithFallback(
-        `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`,
-        `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`, // same — no remote URL available
-      );
-      this._avatarTextureMap.set(name, tex);
-    });
-    await Promise.allSettled(extraLoads);
-
-    // Load all emoji textures in parallel using native Image loading
-    // (emoji URLs may lack a .png extension, which confuses the Pixi parser).
-    const emojiLoads = data.emojies.map(async (e) => {
-      try {
-        const tex = await _loadWithFallback(e.url, `${import.meta.env.BASE_URL}assets/emojis/${e.name.toLowerCase()}.png`);
-        if (tex !== Texture.EMPTY) this._emojiMap.set(e.name, tex);
-      } catch {
-        // Emoji texture failed — BubbleView will use text fallback.
-      }
-    });
-    await Promise.allSettled(emojiLoads);
-
-    // Some dialogue lines reference emoji tokens that are not in data.emojies
-    // (e.g. {win}, {affirmative}).  Auto-resolve them using DiceBear fun-emoji
-    // with the token name as seed so they render as images instead of [text].
     const knownEmojiNames = new Set(data.emojies.map((e) => e.name));
     const extraEmojiNames = new Set<string>();
     for (const line of data.dialogue) {
@@ -390,15 +354,45 @@ export class MagicWordsScene implements Scene {
         }
       }
     }
-    const extraEmojiLoads = [...extraEmojiNames].map(async (name) => {
-      const seed = name.charAt(0).toUpperCase() + name.slice(1);
-      const url = `https://api.dicebear.com/9.x/fun-emoji/png?seed=${seed}`;
-      try {
-        const tex = await _loadWithFallback(url, `${import.meta.env.BASE_URL}assets/emojis/${name.toLowerCase()}.png`);
+
+    await Promise.allSettled([
+      // Avatar textures from the API avatars list.
+      ...data.avatars.map(async (av) => {
+        const tex = await _loadWithFallback(
+          av.url,
+          `${import.meta.env.BASE_URL}assets/avatars/${av.name.toLowerCase()}.png`,
+        );
+        this._avatarTextureMap.set(av.name, tex);
+        const pos = av.position === 'right' ? 'right' : 'left';
+        this._positionMap.set(av.name, pos);
+      }),
+      // Avatars for dialogue chars absent from the API avatars list (e.g. Neighbour).
+      ...extraNames.map(async (name) => {
+        const tex = await _loadWithFallback(
+          `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`,
+          `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`,
+        );
+        this._avatarTextureMap.set(name, tex);
+      }),
+      // Emoji textures from the API emojies list.
+      ...data.emojies.map(async (e) => {
+        const tex = await _loadWithFallback(
+          e.url,
+          `${import.meta.env.BASE_URL}assets/emojis/${e.name.toLowerCase()}.png`,
+        );
+        if (tex !== Texture.EMPTY) this._emojiMap.set(e.name, tex);
+      }),
+      // Extra emoji tokens not in API list — auto-fetch from DiceBear fun-emoji.
+      ...[...extraEmojiNames].map(async (name) => {
+        const seed = name.charAt(0).toUpperCase() + name.slice(1);
+        const url = `https://api.dicebear.com/9.x/fun-emoji/png?seed=${seed}`;
+        const tex = await _loadWithFallback(
+          url,
+          `${import.meta.env.BASE_URL}assets/emojis/${name.toLowerCase()}.png`,
+        );
         if (tex !== Texture.EMPTY) this._emojiMap.set(name, tex);
-      } catch { /* ignore — inlineLayout falls back to [name] text */ }
-    });
-    await Promise.allSettled(extraEmojiLoads);
+      }),
+    ]);
 
     // _destroyed may be set to true by exit() during the async awaits above.
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -463,7 +457,7 @@ export class MagicWordsScene implements Scene {
     bubble.y = startY;
     bubble.alpha = 0;
     bubble.scale.set(0.98);
-    this._chatArea.addChildAt(bubble, this._chatArea.children.indexOf(this._typingIndicator));
+    this._chatArea.addChild(bubble);
     this._nextBubbleY += bubble.bubbleHeight + gap;
     this._prevSenderName = line.name;
 
@@ -479,7 +473,7 @@ export class MagicWordsScene implements Scene {
       this._typingIndicator.x = nextRight
         ? this._width - CHAT_PADDING - TI_W - 44 - 10
         : CHAT_PADDING + 44 + 10;
-      this._typingIndicator.y = this._nextBubbleY + BUBBLE_GAP_DIFF + 6;
+      // Y is pinned by _layout() — always at the bottom of the visible chat area.
       this._typingIndicator.visible = true;
     }
 
@@ -554,6 +548,10 @@ export class MagicWordsScene implements Scene {
     this._chatArea.y = this._scrollY;
 
     this._chatArea.x = 0;
+
+    // Pin typing indicator just above the back-button area, in root coords.
+    // It lives in root (not chatArea) so it never scrolls out of view.
+    this._typingIndicator.y = this._height - BUTTON_H - 28;
 
     this._statusLabel.x = this._width / 2;
     this._statusLabel.y = this._height / 2 - 30;
