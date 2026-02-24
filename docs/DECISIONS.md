@@ -148,6 +148,21 @@ Decisions made during development, reasoning included for reviewers.
 
 ---
 
+## ADR-015 — Fullscreen toggle as HTML element, not Pixi display object
+
+**Status:** Accepted
+
+**Context:** The brief requires the application to run in full screen. A fullscreen button is needed that is always accessible regardless of which scene is active.
+
+**Decision:** A plain `<button id="fullscreen-btn">` HTML element is injected next to the Pixi canvas by `Application._mountFullscreenButton()`. It calls `mountPoint.requestFullscreen()` / `document.exitFullscreen()` and updates its SVG icon on the `fullscreenchange` event.
+
+**Reasoning:**
+- An HTML element lives in the browser's paint layer above WebGL, so it is always visible regardless of the active Pixi scene's display list — no scene coordination needed.
+- `requestFullscreen()` must be called on a DOM element, not a Pixi object, so an HTML button is the natural fit.
+- Keeping the fullscreen chrome out of the Pixi stage avoids polluting every scene's `destroy()` path with HUD teardown logic.
+
+---
+
 ## ADR-013 — Real playing-card visual for card faces
 
 **Status:** Accepted

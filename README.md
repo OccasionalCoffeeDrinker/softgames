@@ -85,6 +85,7 @@ Card faces are rendered as real playing cards (suit symbol + value, corner indic
 - Live moves counter
 - Single-atlas rendering — all 144 sprites share one `RenderTexture`, so Pixi batches them into one draw call
 - Ticker runs at native display refresh rate (no `maxFPS` cap)
+- Fullscreen toggle button (top-right corner, always on top of canvas)
 
 ### Task 2 — Magic Words
 

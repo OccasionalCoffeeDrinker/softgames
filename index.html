@@ -28,6 +28,7 @@
       }
 
       #app {
+        position: relative;
         width: 100%;
         height: 100%;
         display: block;
@@ -38,6 +39,38 @@
         display: block;
         width: 100% !important;
         height: 100% !important;
+      }
+
+      /* Fullscreen toggle button — always on top of the canvas */
+      #fullscreen-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        color: #ffffff;
+        cursor: pointer;
+        z-index: 100;
+        transition: background 0.15s;
+      }
+      #fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      #fullscreen-btn svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
     </style>
   </head>

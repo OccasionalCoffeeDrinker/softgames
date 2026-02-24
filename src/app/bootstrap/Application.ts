@@ -88,6 +88,7 @@ export class Application {
     });
 
     mountPoint.appendChild(this._pixi.canvas);
+    this._mountFullscreenButton(mountPoint);
 
     // No maxFPS cap — let the Ticker follow the native display refresh rate
     // (60 Hz, 120 Hz, 144 Hz, etc.).  A hard 60 cap on a 120 Hz screen causes
@@ -126,6 +127,48 @@ export class Application {
   // ---------------------------------------------------------------------------
   // Private
   // ---------------------------------------------------------------------------
+
+  /**
+   * Injects a small fullscreen-toggle button as an HTML element positioned
+   * absolute top-right of the canvas mount point.
+   *
+   * Using an HTML element (not a Pixi display object) ensures it is always
+   * rendered on top regardless of the active scene's display list, and keeps
+   * the Pixi stage free of UI chrome.
+   */
+  private _mountFullscreenButton(mountPoint: HTMLElement): void {
+    const ICON_ENTER =
+      '<svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/>' +
+      '<path d="M16 3h3a2 2 0 0 1 2 2v3"/>' +
+      '<path d="M8 21H5a2 2 0 0 1-2-2v-3"/>' +
+      '<path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+    const ICON_EXIT =
+      '<svg viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3"/>' +
+      '<path d="M16 3v3a2 2 0 0 0 2 2h3"/>' +
+      '<path d="M8 21v-3a2 2 0 0 0-2-2H3"/>' +
+      '<path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+
+    const btn = document.createElement('button');
+    btn.id = 'fullscreen-btn';
+    btn.title = 'Toggle fullscreen';
+    btn.setAttribute('aria-label', 'Toggle fullscreen');
+    btn.innerHTML = ICON_ENTER;
+
+    btn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        void mountPoint.requestFullscreen();
+      } else {
+        void document.exitFullscreen();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      btn.innerHTML = document.fullscreenElement ? ICON_EXIT : ICON_ENTER;
+      btn.title = document.fullscreenElement ? 'Exit fullscreen' : 'Toggle fullscreen';
+    });
+
+    mountPoint.appendChild(btn);
+  }
 
   /**
    * Load all assets tagged `shared`.
