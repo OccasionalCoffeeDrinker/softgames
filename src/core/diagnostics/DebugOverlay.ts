@@ -128,7 +128,7 @@ export class DebugOverlay {
     this._elapsed = 0;
 
     const fps = Math.round(ticker.FPS);
-    const scene = String(this._sceneManager.current?.id ?? 'none');
+    const scene = this._sceneManager.current?.id ?? 'none';
     const { activeTweens, activeParticles, particleCap } = this._metrics;
 
     const lines = [

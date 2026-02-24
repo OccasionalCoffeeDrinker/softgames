@@ -119,10 +119,14 @@ export class FPSMeter {
     // Swap visible set only when colour tier changes — zero GPU work otherwise.
     if (nextIdx !== this._activeIdx) {
       const prev = this._activeIdx;
-      this._pills[prev]!.visible  = false;
-      this._labels[prev]!.visible = false;
-      this._pills[nextIdx]!.visible  = true;
-      this._labels[nextIdx]!.visible = true;
+      const prevPill = this._pills[prev];
+      const prevLabel = this._labels[prev];
+      const nextPill = this._pills[nextIdx];
+      const nextLabel = this._labels[nextIdx];
+      if (prevPill) prevPill.visible = false;
+      if (prevLabel) prevLabel.visible = false;
+      if (nextPill) nextPill.visible = true;
+      if (nextLabel) nextLabel.visible = true;
       this._activeIdx = nextIdx;
     }
   }

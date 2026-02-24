@@ -61,7 +61,7 @@ export interface InlineLayoutResult {
 // This avoids allocating a new node per word while still getting accurate metrics.
 let _measureNode: Text | undefined;
 function measureWord(word: string): number {
-  if (_measureNode === undefined) _measureNode = new Text({ text: '', style: TEXT_STYLE });
+  _measureNode ??= new Text({ text: '', style: TEXT_STYLE });
   _measureNode.text = word;
   return _measureNode.width;
 }
@@ -130,9 +130,8 @@ export function buildInlineLayout(
 
     // Text token: measure word-by-word but accumulate into one Text per segment.
     const words = token.value.split(' ');
-    for (let wi = 0; wi < words.length; wi++) {
-      const word = words[wi];
-      if (word === undefined || word.length === 0) continue;
+    for (const word of words) {
+      if (word.length === 0) continue;
 
       // Measure via the shared singleton node — avoids allocating a new Text per word.
       const wordW = measureWord(word);
