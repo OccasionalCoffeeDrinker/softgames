@@ -127,6 +127,15 @@ export class MagicWordsScene implements Scene {
   private _destroyed = false;
   private _typingTime = 0;
 
+  // Manual scroll state
+  private _visibleH = 0;          // height of the visible chat viewport
+  private _scrollY = 0;           // current chatArea.y (≤ 0)
+  private _isDragging = false;
+  private _dragStartY = 0;
+  private _dragStartScrollY = 0;
+  private _scrollZone!: Graphics; // transparent hit-area that captures drag events
+  private _wheelHandler: ((e: WheelEvent) => void) | null = null;
+
   public constructor() {
     this.root = new Container();
     this.tweens = new TweenManager();
@@ -149,6 +158,40 @@ export class MagicWordsScene implements Scene {
     this._chatArea.mask = this._chatMask;
     this.root.addChild(this._chatMask);
     this.root.addChild(this._chatArea);
+
+    // Transparent zone that captures wheel + pointer-drag for manual scroll.
+    // Drawn over the chat area; sized in _layout().
+    this._scrollZone = new Graphics();
+    this._scrollZone.eventMode = 'static';
+    this._scrollZone.cursor = 'grab';
+    this.root.addChild(this._scrollZone);
+
+    this._scrollZone.on('pointerdown', (e) => {
+      this._isDragging = true;
+      this._dragStartY = e.global.y;
+      this._dragStartScrollY = this._scrollY;
+      this._scrollZone.cursor = 'grabbing';
+    });
+    this._scrollZone.on('pointermove', (e) => {
+      if (!this._isDragging) return;
+      const dy = e.global.y - this._dragStartY;
+      this._scrollY = this._clampScroll(this._dragStartScrollY + dy);
+      this._chatArea.y = this._scrollY;
+    });
+    const endDrag = (): void => {
+      this._isDragging = false;
+      this._scrollZone.cursor = 'grab';
+    };
+    this._scrollZone.on('pointerup', endDrag);
+    this._scrollZone.on('pointerupoutside', endDrag);
+
+    // Native wheel event on the canvas — Pixi does not forward wheel events.
+    this._wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      this._scrollY = this._clampScroll(this._scrollY - e.deltaY * 0.7);
+      this._chatArea.y = this._scrollY;
+    };
+    ctx.app.canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
 
     // Status / loading label
     this._statusLabel = new Text({
@@ -265,6 +308,10 @@ export class MagicWordsScene implements Scene {
 
   public destroy(): void {
     this._destroyed = true;
+    if (this._wheelHandler !== null) {
+      this._ctx.app.canvas.removeEventListener('wheel', this._wheelHandler);
+      this._wheelHandler = null;
+    }
     this._backBtn.destroy();
     this._retryBtn.destroy();
     this._dialogue = [];
@@ -464,9 +511,22 @@ export class MagicWordsScene implements Scene {
         onUpdate: (p) => {
           this._chatArea.y = startScrollY + (targetY - startScrollY) * p;
         },
-        onComplete: () => { this._chatArea.y = targetY; },
+        onComplete: () => {
+          this._chatArea.y = targetY;
+          this._scrollY = targetY;
+        },
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll helpers
+  // ---------------------------------------------------------------------------
+
+  /** Clamp a proposed scroll Y so content never scrolls past its edges. */
+  private _clampScroll(y: number): number {
+    const minY = Math.min(0, this._visibleH - this._nextBubbleY - CHAT_PADDING);
+    return Math.max(minY, Math.min(0, y));
   }
 
   // ---------------------------------------------------------------------------
@@ -479,9 +539,19 @@ export class MagicWordsScene implements Scene {
     this._bg.fill({ color: 0x0f0f1a });
 
     const chatAreaH = this._height - BUTTON_H - CHAT_PADDING;
+    this._visibleH = chatAreaH;
     this._chatMask.clear();
     this._chatMask.rect(0, CHAT_PADDING, this._width, chatAreaH);
     this._chatMask.fill({ color: 0xffffff });
+
+    // Keep scroll zone in sync with the visible chat viewport.
+    this._scrollZone.clear();
+    this._scrollZone.rect(0, CHAT_PADDING, this._width, chatAreaH);
+    this._scrollZone.fill({ color: 0x000000, alpha: 0 });
+
+    // Re-clamp scroll after resize (viewport height may have changed).
+    this._scrollY = this._clampScroll(this._scrollY);
+    this._chatArea.y = this._scrollY;
 
     this._chatArea.x = 0;
 
