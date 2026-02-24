@@ -264,7 +264,7 @@ export class MagicWordsScene implements Scene {
     const avatarLoads = data.avatars.map(async (av) => {
       const tex = await _loadWithFallback(
         av.url,
-        `/assets/avatars/${av.name.toLowerCase()}.png`,
+        `${import.meta.env.BASE_URL}assets/avatars/${av.name.toLowerCase()}.png`,
       );
       this._avatarTextureMap.set(av.name, tex);
       // Store position from API; default to 'left' if field is absent.
@@ -282,8 +282,8 @@ export class MagicWordsScene implements Scene {
     );
     const extraLoads = extraNames.map(async (name) => {
       const tex = await _loadWithFallback(
-        `/assets/avatars/${name.toLowerCase()}.png`,
-        `/assets/avatars/${name.toLowerCase()}.png`, // same — no remote URL available
+        `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`,
+        `${import.meta.env.BASE_URL}assets/avatars/${name.toLowerCase()}.png`, // same — no remote URL available
       );
       this._avatarTextureMap.set(name, tex);
     });
@@ -293,7 +293,7 @@ export class MagicWordsScene implements Scene {
     // (emoji URLs may lack a .png extension, which confuses the Pixi parser).
     const emojiLoads = data.emojies.map(async (e) => {
       try {
-        const tex = await _loadWithFallback(e.url, `/assets/emojis/${e.name.toLowerCase()}.png`);
+        const tex = await _loadWithFallback(e.url, `${import.meta.env.BASE_URL}assets/emojis/${e.name.toLowerCase()}.png`);
         if (tex !== Texture.EMPTY) this._emojiMap.set(e.name, tex);
       } catch {
         // Emoji texture failed — BubbleView will use text fallback.
@@ -317,7 +317,7 @@ export class MagicWordsScene implements Scene {
       const seed = name.charAt(0).toUpperCase() + name.slice(1);
       const url = `https://api.dicebear.com/9.x/fun-emoji/png?seed=${seed}`;
       try {
-        const tex = await _loadWithFallback(url, `/assets/emojis/${name.toLowerCase()}.png`);
+        const tex = await _loadWithFallback(url, `${import.meta.env.BASE_URL}assets/emojis/${name.toLowerCase()}.png`);
         if (tex !== Texture.EMPTY) this._emojiMap.set(name, tex);
       } catch { /* ignore — inlineLayout falls back to [name] text */ }
     });
